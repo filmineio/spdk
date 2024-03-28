@@ -1084,7 +1084,9 @@ nop(void *arg1, void *arg2)
 void
 spdk_reactors_stop(void *arg1)
 {
+	fprintf(stdout, "DSZ: SPDK: spdk_reactors_stop: BEGIN\n");
 	spdk_for_each_reactor(nop, NULL, NULL, _reactors_stop);
+	fprintf(stdout, "DSZ: SPDK: spdk_reactors_stop: END\n");
 }
 
 static pthread_mutex_t g_scheduler_mtx = PTHREAD_MUTEX_INITIALIZER;

@@ -106,16 +106,19 @@ nvme_ctrlr_detach_poll_async(struct nvme_ctrlr_detach_ctx *ctx)
 int
 spdk_nvme_detach(struct spdk_nvme_ctrlr *ctrlr)
 {
+	fprintf(stdout, "DSZ: spdk_nvme_detach: BEGIN\n");
 	struct nvme_ctrlr_detach_ctx *ctx = NULL;
 	int rc;
 
 	rc = nvme_ctrlr_detach_async(ctrlr, &ctx);
 	if (rc != 0) {
+		fprintf(stdout, "DSZ: spdk_nvme_detach: BEGIN: END FAILED: rc = %d\n", rc);
 		return rc;
 	} else if (ctx == NULL) {
 		/* ctrlr was detached from the caller process but any other process
 		 * still attaches it.
 		 */
+		fprintf(stdout, "DSZ: spdk_nvme_detach: END SUCCESS other process comment\n");
 		return 0;
 	}
 
@@ -126,6 +129,8 @@ spdk_nvme_detach(struct spdk_nvme_ctrlr *ctrlr)
 		}
 		nvme_delay(1000);
 	}
+
+	fprintf(stdout, "DSZ: spdk_nvme_detach: END SUCCESS\n");
 
 	return 0;
 }
@@ -741,15 +746,19 @@ nvme_ctrlr_poll_internal(struct spdk_nvme_ctrlr *ctrlr,
 static int
 nvme_init_controllers(struct spdk_nvme_probe_ctx *probe_ctx)
 {
+	fprintf(stdout, "DSZ: SPDK: nvme_init_controllers: BEGIN - trstring = %s\n", probe_ctx->trid.trstring);
 	int rc = 0;
 
 	while (true) {
+		// fprintf(stdout, "DSZ: SPDK: nvme_init_controllers: call spdk_nvme_probe_poll_async - trstring = %s\n", probe_ctx->trid.trstring);
 		rc = spdk_nvme_probe_poll_async(probe_ctx);
 		if (rc != -EAGAIN) {
+			// fprintf(stdout, "DSZ: SPDK: nvme_init_controllers: return from spdk_nvme_probe_poll_async - rc = %d, trstring = %s\n", rc, probe_ctx->trid.trstring);
 			return rc;
 		}
 	}
 
+	fprintf(stdout, "DSZ: SPDK: nvme_init_controllers: END - rc = %d, trstring = %s\n", rc, probe_ctx->trid.trstring);
 	return rc;
 }
 
@@ -881,23 +890,34 @@ spdk_nvme_probe(const struct spdk_nvme_transport_id *trid, void *cb_ctx,
 	struct spdk_nvme_probe_ctx *probe_ctx;
 
 	if (trid == NULL) {
+		fprintf(stdout, "DSZ: SPDK: spdk_nvme_probe: trid = NULL, prepare pcie\n");
 		memset(&trid_pcie, 0, sizeof(trid_pcie));
 		spdk_nvme_trid_populate_transport(&trid_pcie, SPDK_NVME_TRANSPORT_PCIE);
 		trid = &trid_pcie;
 	}
 
+	fprintf(stdout, "DSZ: SPDK: spdk_nvme_probe: trid prepared: trstring = %s\n", trid->trstring);
+
 	probe_ctx = spdk_nvme_probe_async(trid, cb_ctx, probe_cb,
 					  attach_cb, remove_cb);
+	fprintf(stdout, "DSZ: SPDK: spdk_nvme_probe: called probe async\n");
 	if (!probe_ctx) {
 		SPDK_ERRLOG("Create probe context failed\n");
 		return -1;
 	}
 
+	fprintf(stdout, "DSZ: SPDK: spdk_nvme_probe: probe_ctx->trid.trstring = %s\n", probe_ctx->trid.trstring);
+
 	/*
 	 * Keep going even if one or more nvme_attach() calls failed,
 	 *  but maintain the value of rc to signal errors when we return.
 	 */
-	return nvme_init_controllers(probe_ctx);
+	fprintf(stdout, "DSZ: SPDK: spdk_nvme_probe: init controllers\n");
+	int res = nvme_init_controllers(probe_ctx);
+	fprintf(stdout, "DSZ: SPDK: spdk_nvme_probe: END - res = %d\n", res);
+	return res;
+
+	// return nvme_init_controllers(probe_ctx);
 }
 
 static bool
@@ -1502,6 +1522,7 @@ spdk_nvme_probe_poll_async(struct spdk_nvme_probe_ctx *probe_ctx)
 	struct spdk_nvme_ctrlr *ctrlr, *ctrlr_tmp;
 
 	if (!spdk_process_is_primary() && probe_ctx->trid.trtype == SPDK_NVME_TRANSPORT_PCIE) {
+		fprintf(stdout, "DSZ: SPDK: spdk_nvme_probe_poll_async: PICE - SPDK process is NOT primary! probe_ctx->trid.trstring = %s\n", probe_ctx->trid.trstring);
 		free(probe_ctx);
 		return 0;
 	}
@@ -1511,6 +1532,7 @@ spdk_nvme_probe_poll_async(struct spdk_nvme_probe_ctx *probe_ctx)
 	}
 
 	if (TAILQ_EMPTY(&probe_ctx->init_ctrlrs)) {
+		fprintf(stdout, "DSZ: SPDK: spdk_nvme_probe_poll_async: if empty: probe_ctx->trid.trstring = %s\n", probe_ctx->trid.trstring);
 		nvme_robust_mutex_lock(&g_spdk_nvme_driver->lock);
 		g_spdk_nvme_driver->initialized = true;
 		nvme_robust_mutex_unlock(&g_spdk_nvme_driver->lock);

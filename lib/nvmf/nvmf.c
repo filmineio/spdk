@@ -142,12 +142,17 @@ nvmf_poll_group_add_transport(struct spdk_nvmf_poll_group *group,
 {
 	struct spdk_nvmf_transport_poll_group *tgroup;
 
+	// fprintf(stdout, "DSZ: SPDK: nvmf_poll_group_add_transport: BEGIN\n");
+
 	TAILQ_FOREACH(tgroup, &group->tgroups, link) {
 		if (tgroup->transport == transport) {
+			// fprintf(stdout, "DSZ: SPDK: nvmf_poll_group_add_transport: transport already in the poll group: %p\n", transport);
 			/* Transport already in the poll group */
 			return 0;
 		}
 	}
+
+	// fprintf(stdout, "DSZ: SPDK: nvmf_poll_group_add_transport: call nvmf_transport_poll_group_create: transport = %p, group = %p\n", transport, group);
 
 	tgroup = nvmf_transport_poll_group_create(transport, group);
 	if (!tgroup) {
@@ -158,6 +163,8 @@ nvmf_poll_group_add_transport(struct spdk_nvmf_poll_group *group,
 
 	tgroup->group = group;
 	TAILQ_INSERT_TAIL(&group->tgroups, tgroup, link);
+
+	// fprintf(stdout, "DSZ: SPDK: nvmf_poll_group_add_transport: call nvmf_transport_poll_group_create: END\n");
 
 	return 0;
 }
@@ -314,6 +321,8 @@ spdk_nvmf_tgt_create(struct spdk_nvmf_target_opts *opts)
 
 	pthread_mutex_init(&tgt->mutex, NULL);
 
+	fprintf(stdout, "DSZ: SPDK: spdk_nvmf_tgt_create: register device with poll group, poller, etc\n");
+
 	spdk_io_device_register(tgt,
 				nvmf_tgt_create_poll_group,
 				nvmf_tgt_destroy_poll_group,
@@ -351,6 +360,7 @@ _nvmf_tgt_destroy_next_transport(void *ctx)
 static void
 nvmf_tgt_destroy_cb(void *io_device)
 {
+	fprintf(stdout, "DSZ: SPDK: nvmf_tgt_destroy_cb: BEGIN\n");
 	struct spdk_nvmf_tgt *tgt = io_device;
 	uint32_t i;
 	int rc;
@@ -383,6 +393,7 @@ spdk_nvmf_tgt_destroy(struct spdk_nvmf_tgt *tgt,
 		      spdk_nvmf_tgt_destroy_done_fn cb_fn,
 		      void *cb_arg)
 {
+	fprintf(stdout, "DSZ: SPDK: spdk_nvmf_tgt_destroy BEGIN\n");
 	tgt->destroy_cb_fn = cb_fn;
 	tgt->destroy_cb_arg = cb_arg;
 
@@ -733,14 +744,20 @@ _nvmf_tgt_remove_transport(struct spdk_io_channel_iter *i)
 static void
 _nvmf_tgt_add_transport_done(struct spdk_io_channel_iter *i, int status)
 {
+	fprintf(stdout, "DSZ: SPDK: _nvmf_tgt_add_transport_done: BEGIN\n");
+
 	struct spdk_nvmf_tgt_add_transport_ctx *ctx = spdk_io_channel_iter_get_ctx(i);
 
 	if (status) {
+		fprintf(stdout, "DSZ: SPDK: _nvmf_tgt_add_transport_done: if: BEGIN %d\n", status);
 		ctx->status = status;
+		fprintf(stdout, "DSZ: SPDK: _nvmf_tgt_add_transport_done: call spdk_for_each_channel for _nvmf_tgt_remove_transport: BEGIN\n");
 		spdk_for_each_channel(ctx->tgt,
 				      _nvmf_tgt_remove_transport,
 				      ctx,
 				      _nvmf_tgt_remove_transport_done);
+		fprintf(stdout, "DSZ: SPDK: _nvmf_tgt_add_transport_done: call spdk_for_each_channel for _nvmf_tgt_remove_transport: END\n");
+		fprintf(stdout, "DSZ: SPDK: _nvmf_tgt_add_transport_done: if: END RETURN");
 		return;
 	}
 
@@ -748,6 +765,8 @@ _nvmf_tgt_add_transport_done(struct spdk_io_channel_iter *i, int status)
 	TAILQ_INSERT_TAIL(&ctx->tgt->transports, ctx->transport, link);
 	ctx->cb_fn(ctx->cb_arg, status);
 	free(ctx);
+
+	fprintf(stdout, "DSZ: SPDK: _nvmf_tgt_add_transport_done: END\n");
 }
 
 static void
@@ -758,7 +777,10 @@ _nvmf_tgt_add_transport(struct spdk_io_channel_iter *i)
 	struct spdk_nvmf_poll_group *group = spdk_io_channel_get_ctx(ch);
 	int rc;
 
+	fprintf(stdout, "DSZ: SPDK: _nvmf_tgt_add_transport: call nvmf_poll_group_add_transport: group = %p, transport = %p\n", group, ctx->transport);
+
 	rc = nvmf_poll_group_add_transport(group, ctx->transport);
+	fprintf(stdout, "DSZ: SPDK: _nvmf_tgt_add_transport: call spdk_for_each_channel_continue: i = %p, rc = %d\n", i, rc);
 	spdk_for_each_channel_continue(i, rc);
 }
 
@@ -772,13 +794,17 @@ spdk_nvmf_tgt_add_transport(struct spdk_nvmf_tgt *tgt,
 
 	SPDK_DTRACE_PROBE2(nvmf_tgt_add_transport, transport, tgt->name);
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_tgt_add_transport: BEGIN\n");
+
 	if (spdk_nvmf_tgt_get_transport(tgt, transport->ops->name)) {
+		// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_tgt_add_transport: ALREADY CREATED\n");
 		cb_fn(cb_arg, -EEXIST);
 		return; /* transport already created */
 	}
 
 	ctx = calloc(1, sizeof(*ctx));
 	if (!ctx) {
+		// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_tgt_add_transport: NO MEM ERROR\n");
 		cb_fn(cb_arg, -ENOMEM);
 		return;
 	}
@@ -788,10 +814,12 @@ spdk_nvmf_tgt_add_transport(struct spdk_nvmf_tgt *tgt,
 	ctx->cb_fn = cb_fn;
 	ctx->cb_arg = cb_arg;
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_tgt_add_transport: call spdk_for_each_channel to loop _nvmf_tgt_add_transport: BEGIN\n");
 	spdk_for_each_channel(tgt,
 			      _nvmf_tgt_add_transport,
 			      ctx,
 			      _nvmf_tgt_add_transport_done);
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_tgt_add_transport: call spdk_for_each_channel to loop _nvmf_tgt_add_transport: END\n");
 }
 
 struct spdk_nvmf_subsystem *
@@ -895,7 +923,10 @@ spdk_nvmf_poll_group_create(struct spdk_nvmf_tgt *tgt)
 {
 	struct spdk_io_channel *ch;
 
+	fprintf(stdout, "DSZ: SPDK: spdk_nvmf_poll_group_create: BEGIN\n");
+
 	ch = spdk_get_io_channel(tgt);
+	fprintf(stdout, "DSZ: SPDK: spdk_nvmf_poll_group_create: ch = %p\n", ch);
 	if (!ch) {
 		SPDK_ERRLOG("Unable to get I/O channel for target\n");
 		return NULL;

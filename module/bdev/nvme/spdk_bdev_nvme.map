@@ -1,0 +1,8 @@
+{
+	global:
+
+	# public functions
+	bdev_nvme_create;
+
+	local: *;
+};

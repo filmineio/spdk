@@ -2152,6 +2152,7 @@ err:
 static int
 nvmf_tcp_sock_process(struct spdk_nvmf_tcp_qpair *tqpair)
 {
+	// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_sock_process: BEGIN\n");
 	int rc = 0;
 	struct nvme_tcp_pdu *pdu;
 	enum nvme_tcp_pdu_recv_state prev_state;
@@ -2169,6 +2170,7 @@ nvmf_tcp_sock_process(struct spdk_nvmf_tcp_qpair *tqpair)
 		switch (tqpair->recv_state) {
 		/* Wait for the common header  */
 		case NVME_TCP_PDU_RECV_STATE_AWAIT_PDU_READY:
+			// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_sock_progress: NVME_TCP_PDU_RECV_STATE_AWAIT_PDU_READY: BEGIN\n");
 			if (!pdu) {
 				pdu = SLIST_FIRST(&tqpair->tcp_pdu_free_queue);
 				if (spdk_unlikely(!pdu)) {
@@ -2181,6 +2183,7 @@ nvmf_tcp_sock_process(struct spdk_nvmf_tcp_qpair *tqpair)
 			nvmf_tcp_qpair_set_recv_state(tqpair, NVME_TCP_PDU_RECV_STATE_AWAIT_PDU_CH);
 		/* FALLTHROUGH */
 		case NVME_TCP_PDU_RECV_STATE_AWAIT_PDU_CH:
+			// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_sock_progress: NVME_TCP_PDU_RECV_STATE_AWAIT_PDU_CH\n");
 			if (spdk_unlikely(tqpair->state == NVME_TCP_QPAIR_STATE_INITIALIZING)) {
 				return rc;
 			}
@@ -2205,6 +2208,7 @@ nvmf_tcp_sock_process(struct spdk_nvmf_tcp_qpair *tqpair)
 			break;
 		/* Wait for the pdu specific header  */
 		case NVME_TCP_PDU_RECV_STATE_AWAIT_PDU_PSH:
+			// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_sock_progress: NVME_TCP_PDU_RECV_STATE_AWAIT_PDU_PSH\n");
 			rc = nvme_tcp_read_data(tqpair->sock,
 						pdu->psh_len - pdu->psh_valid_bytes,
 						(void *)&pdu->hdr.raw + sizeof(struct spdk_nvme_tcp_common_pdu_hdr) + pdu->psh_valid_bytes);
@@ -2224,9 +2228,11 @@ nvmf_tcp_sock_process(struct spdk_nvmf_tcp_qpair *tqpair)
 			break;
 		/* Wait for the req slot */
 		case NVME_TCP_PDU_RECV_STATE_AWAIT_REQ:
+			// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_sock_progress: NVME_TCP_PDU_RECV_STATE_AWAIT_REQ\n");
 			nvmf_tcp_capsule_cmd_hdr_handle(ttransport, tqpair, pdu);
 			break;
 		case NVME_TCP_PDU_RECV_STATE_AWAIT_PDU_PAYLOAD:
+			// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_sock_progress: NVME_TCP_PDU_RECV_STATE_AWAIT_PDU_PAYLOAD\n");
 			/* check whether the data is valid, if not we just return */
 			if (!pdu->data_len) {
 				return NVME_TCP_PDU_IN_PROGRESS;
@@ -2262,6 +2268,7 @@ nvmf_tcp_sock_process(struct spdk_nvmf_tcp_qpair *tqpair)
 			nvmf_tcp_pdu_payload_handle(tqpair, pdu);
 			break;
 		case NVME_TCP_PDU_RECV_STATE_ERROR:
+			// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_sock_progress: NVME_TCP_PDU_RECV_STATE_ERROR\n");
 			if (!spdk_sock_is_connected(tqpair->sock)) {
 				return NVME_TCP_PDU_FATAL;
 			}
@@ -2272,6 +2279,8 @@ nvmf_tcp_sock_process(struct spdk_nvmf_tcp_qpair *tqpair)
 			break;
 		}
 	} while (tqpair->recv_state != prev_state);
+
+	// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_sock_process: END rc = %d\n", rc);
 
 	return rc;
 }
@@ -3181,6 +3190,7 @@ nvmf_tcp_close_qpair(struct spdk_nvmf_qpair *qpair,
 static int
 nvmf_tcp_poll_group_poll(struct spdk_nvmf_transport_poll_group *group)
 {
+	// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_poll_group_poll: BEGIN\n");
 	struct spdk_nvmf_tcp_poll_group *tgroup;
 	int rc;
 	struct spdk_nvmf_request *req, *req_tmp;
@@ -3192,8 +3202,12 @@ nvmf_tcp_poll_group_poll(struct spdk_nvmf_transport_poll_group *group)
 	tgroup = SPDK_CONTAINEROF(group, struct spdk_nvmf_tcp_poll_group, group);
 
 	if (spdk_unlikely(TAILQ_EMPTY(&tgroup->qpairs) && TAILQ_EMPTY(&tgroup->await_req))) {
+		// DSZ: NOTE: usually exits here during init phase
+		// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_poll_group_poll: return 0\n");
 		return 0;
 	}
+
+	// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_poll_group_poll: will loop nvmf_tcp_req_process\n");
 
 	STAILQ_FOREACH_SAFE(req, &group->pending_buf_queue, buf_link, req_tmp) {
 		tcp_req = SPDK_CONTAINEROF(req, struct spdk_nvmf_tcp_req, req);
@@ -3211,6 +3225,7 @@ nvmf_tcp_poll_group_poll(struct spdk_nvmf_transport_poll_group *group)
 		nvmf_tcp_sock_process(tqpair);
 	}
 
+	// fprintf(stdout, "DSZ: SPDK: nvmf_tcp_poll_group_poll: END rc = %d\n", rc);
 	return rc;
 }
 

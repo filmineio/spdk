@@ -652,6 +652,7 @@ nvmf_qpair_access_allowed(struct spdk_nvmf_qpair *qpair, struct spdk_nvmf_subsys
 		return false;
 	}
 
+	fprintf(stdout, "DSZ: SPDK: nvmf_qpair_access_allowed: hostnqn = %s\n", hostnqn);
 	if (!spdk_nvmf_subsystem_listener_allowed(subsystem, &listen_trid)) {
 		SPDK_ERRLOG("Subsystem '%s' does not allow host '%s' to connect at this address.\n",
 			    subsystem->subnqn, hostnqn);

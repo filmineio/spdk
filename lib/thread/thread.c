@@ -453,6 +453,7 @@ spdk_thread_create(const char *name, const struct spdk_cpuset *cpumask)
 		return NULL;
 	}
 	thread->id = g_thread_id++;
+	fprintf(stdout, "DSZ: SPDK: spdk_thread_create: insert to g_threads: thread = %p\n", thread);
 	TAILQ_INSERT_TAIL(&g_threads, thread, tailq);
 	g_thread_count++;
 	pthread_mutex_unlock(&g_devlist_mutex);
@@ -1572,6 +1573,9 @@ wrong_thread(const char *func, const char *name, struct spdk_thread *thread,
 {
 	if (thread == NULL) {
 		SPDK_ERRLOG("%s(%s) called with NULL thread\n", func, name);
+		// DSZ: remove
+		fflush(stdout);
+		fflush(stderr);
 		abort();
 	}
 	SPDK_ERRLOG("%s(%s) called from wrong thread %s:%" PRIu64 " (should be "
@@ -2353,6 +2357,8 @@ _call_channel(void *ctx)
 	struct spdk_io_channel_iter *i = ctx;
 	struct spdk_io_channel *ch;
 
+	// fprintf(stdout, "DSZ: SPDK: _call_channel: BEGIN: i->cur_thread = %p\n", i->cur_thread);
+
 	/*
 	 * It is possible that the channel was deleted before this
 	 *  message had a chance to execute.  If so, skip calling
@@ -2362,9 +2368,13 @@ _call_channel(void *ctx)
 	ch = thread_get_io_channel(i->cur_thread, i->dev);
 	pthread_mutex_unlock(&g_devlist_mutex);
 
+	// fprintf(stdout, "DSZ: SPDK: _call_channel: before IF: ch = %p\n", ch);
+
 	if (ch) {
+		// fprintf(stdout, "DSZ: SPDK: _call_channel: IF: if: call i->fn: fn = %p\n", i->fn);
 		i->fn(i);
 	} else {
+		// fprintf(stdout, "DSZ: SPDK: _call_channel: IF: else: continue next channel\n");
 		spdk_for_each_channel_continue(i, 0);
 	}
 }
@@ -2378,6 +2388,8 @@ spdk_for_each_channel(void *io_device, spdk_channel_msg fn, void *ctx,
 	struct spdk_io_channel_iter *i;
 	int rc __attribute__((unused));
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel: BEGIN\n");
+
 	i = calloc(1, sizeof(*i));
 	if (!i) {
 		SPDK_ERRLOG("Unable to allocate iterator\n");
@@ -2390,6 +2402,8 @@ spdk_for_each_channel(void *io_device, spdk_channel_msg fn, void *ctx,
 	i->ctx = ctx;
 	i->cpl = cpl;
 	i->orig_thread = _get_thread();
+
+	// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel: i->orig_thread = _get_thread() = %p\n", i->orig_thread);
 
 	pthread_mutex_lock(&g_devlist_mutex);
 	i->dev = io_device_get(io_device);
@@ -2410,12 +2424,16 @@ spdk_for_each_channel(void *io_device, spdk_channel_msg fn, void *ctx,
 	}
 
 	TAILQ_FOREACH(thread, &g_threads, tailq) {
+		// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel: LOOP thread = %p\n", thread);
 		ch = thread_get_io_channel(thread, i->dev);
+		// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel: LOOP ch = %p\n", ch);
 		if (ch != NULL) {
+			// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel: LOOP i->cur_thread = thread = %p\n", thread);
 			ch->dev->for_each_count++;
 			i->cur_thread = thread;
 			i->ch = ch;
 			pthread_mutex_unlock(&g_devlist_mutex);
+			// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel: LOOP send msg: i->orig_thread = %p, thread = %p\n", i->orig_thread, thread);
 			rc = spdk_thread_send_msg(thread, _call_channel, i);
 			assert(rc == 0);
 			return;
@@ -2427,6 +2445,8 @@ end:
 
 	rc = spdk_thread_send_msg(i->orig_thread, _call_completion, i);
 	assert(rc == 0);
+
+	// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel: END\n");
 }
 
 static void
@@ -2447,9 +2467,13 @@ spdk_for_each_channel_continue(struct spdk_io_channel_iter *i, int status)
 	struct io_device *dev;
 	int rc __attribute__((unused));
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel_continue: BEGIN\n");
+
 	assert(i->cur_thread == spdk_get_thread());
 
 	i->status = status;
+
+	// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel_continue: i->orig_thread = _get_thread() = %p\n", i->orig_thread);
 
 	pthread_mutex_lock(&g_devlist_mutex);
 	dev = i->dev;
@@ -2459,11 +2483,15 @@ spdk_for_each_channel_continue(struct spdk_io_channel_iter *i, int status)
 
 	thread = TAILQ_NEXT(i->cur_thread, tailq);
 	while (thread) {
+		// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel_continue: LOOP thread = %p\n", thread);
 		ch = thread_get_io_channel(thread, dev);
+		// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel_continue: LOOP ch = %p\n", ch);
 		if (ch != NULL) {
+			// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel_continue: LOOP i->cur_thread = thread = %p\n", thread);
 			i->cur_thread = thread;
 			i->ch = ch;
 			pthread_mutex_unlock(&g_devlist_mutex);
+			// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel_continue: LOOP send msg: i->orig_thread = %p, thread = %p\n", i->orig_thread, thread);
 			rc = spdk_thread_send_msg(thread, _call_channel, i);
 			assert(rc == 0);
 			return;
@@ -2485,6 +2513,8 @@ end:
 		assert(rc == 0);
 	}
 	pthread_mutex_unlock(&g_devlist_mutex);
+
+	// fprintf(stdout, "DSZ: SPDK: spdk_for_each_channel_continue: END\n");
 }
 
 struct spdk_interrupt {

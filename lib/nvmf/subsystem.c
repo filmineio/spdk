@@ -223,14 +223,20 @@ spdk_nvmf_subsystem_create(struct spdk_nvmf_tgt *tgt,
 	struct spdk_nvmf_subsystem	*subsystem;
 	uint32_t			sid;
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before tgt find subsystem\n");
+
 	if (spdk_nvmf_tgt_find_subsystem(tgt, nqn)) {
 		SPDK_ERRLOG("Subsystem NQN '%s' already exists\n", nqn);
 		return NULL;
 	}
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before is valid nqn\n");
+
 	if (!nvmf_valid_nqn(nqn)) {
 		return NULL;
 	}
+
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before type checking and num_ns checking\n");
 
 	if (type == SPDK_NVMF_SUBTYPE_DISCOVERY) {
 		if (num_ns != 0) {
@@ -241,20 +247,27 @@ spdk_nvmf_subsystem_create(struct spdk_nvmf_tgt *tgt,
 		num_ns = NVMF_SUBSYSTEM_DEFAULT_NAMESPACES;
 	}
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before max subsystems null check\n");
+
 	/* Find a free subsystem id (sid) */
 	for (sid = 0; sid < tgt->max_subsystems; sid++) {
 		if (tgt->subsystems[sid] == NULL) {
 			break;
 		}
 	}
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before max subsystems check\n");
 	if (sid >= tgt->max_subsystems) {
 		return NULL;
 	}
+
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before calloc nvmf subsystem\n");
 
 	subsystem = calloc(1, sizeof(struct spdk_nvmf_subsystem));
 	if (subsystem == NULL) {
 		return NULL;
 	}
+
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before a bunch of shit\n");
 
 	subsystem->thread = spdk_get_thread();
 	subsystem->state = SPDK_NVMF_SUBSYSTEM_INACTIVE;
@@ -272,12 +285,16 @@ spdk_nvmf_subsystem_create(struct spdk_nvmf_tgt *tgt,
 	TAILQ_INIT(&subsystem->ctrlrs);
 	subsystem->used_listener_ids = spdk_bit_array_create(NVMF_MAX_LISTENERS_PER_SUBSYSTEM);
 	if (subsystem->used_listener_ids == NULL) {
+		// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: used listener ids = null\n");
 		pthread_mutex_destroy(&subsystem->mutex);
 		free(subsystem);
 		return NULL;
 	}
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before num_ns != 0 check\n");
+
 	if (num_ns != 0) {
+		// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: num_ns is != 0\n");
 		subsystem->ns = calloc(num_ns, sizeof(struct spdk_nvmf_ns *));
 		if (subsystem->ns == NULL) {
 			SPDK_ERRLOG("Namespace memory allocation failed\n");
@@ -297,15 +314,25 @@ spdk_nvmf_subsystem_create(struct spdk_nvmf_tgt *tgt,
 		}
 	}
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before memset sn\n");
+
 	memset(subsystem->sn, '0', sizeof(subsystem->sn) - 1);
 	subsystem->sn[sizeof(subsystem->sn) - 1] = '\0';
+
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before memset mn\n");
 
 	snprintf(subsystem->mn, sizeof(subsystem->mn), "%s",
 		 MODEL_NUMBER_DEFAULT);
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: subs[sid] = sub\n");
+
 	tgt->subsystems[sid] = subsystem;
 
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: before probe\n");
+
 	SPDK_DTRACE_PROBE1(nvmf_subsystem_create, subsystem->subnqn);
+
+	// fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_create: END return subsystem\n");
 
 	return subsystem;
 }
@@ -409,6 +436,8 @@ int
 spdk_nvmf_subsystem_destroy(struct spdk_nvmf_subsystem *subsystem, nvmf_subsystem_destroy_cb cpl_cb,
 			    void *cpl_cb_arg)
 {
+	fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_destroy: BEGIN\n");
+
 	struct spdk_nvmf_host *host, *host_tmp;
 
 	if (!subsystem) {
@@ -593,10 +622,12 @@ subsystem_state_change_done(struct spdk_io_channel_iter *i, int status)
 			goto out;
 		}
 		ctx->requested_state = ctx->original_state;
+		fprintf(stdout, "DSZ: SPDK: subsystem_state_change_done: call spdk_for_each_channel for subsystem_state_change_on_pg: BEGIN\n");
 		spdk_for_each_channel(ctx->subsystem->tgt,
 				      subsystem_state_change_on_pg,
 				      ctx,
 				      subsystem_state_change_revert_done);
+		fprintf(stdout, "DSZ: SPDK: subsystem_state_change_done: call spdk_for_each_channel for subsystem_state_change_on_pg: END\n");
 		return;
 	}
 
@@ -704,10 +735,12 @@ nvmf_subsystem_state_change(struct spdk_nvmf_subsystem *subsystem,
 	ctx->cb_fn = cb_fn;
 	ctx->cb_arg = cb_arg;
 
+	// fprintf(stdout, "DSZ: SPDK: nvmf_subsystem_change_state: call spdk_for_each_channel for subsystem_state_change_on_pg: BEGIN\n");
 	spdk_for_each_channel(subsystem->tgt,
 			      subsystem_state_change_on_pg,
 			      ctx,
 			      subsystem_state_change_done);
+	// fprintf(stdout, "DSZ: SPDK: nvmf_subsystem_change_state: call spdk_for_each_channel for subsystem_state_change_on_pg: END\n");
 
 	return 0;
 }
@@ -934,8 +967,10 @@ spdk_nvmf_subsystem_disconnect_host(struct spdk_nvmf_subsystem *subsystem,
 	ctx->cb_fn = cb_fn;
 	ctx->cb_arg = cb_arg;
 
+	fprintf(stdout, "DSZ: SPDK: nvmf_subsystem_update_ns: call spdk_for_each_channel for subsystem_update_ns_on_pg: BEGIN\n");
 	spdk_for_each_channel(subsystem->tgt, nvmf_subsystem_disconnect_qpairs_by_host, ctx,
 			      nvmf_subsystem_disconnect_host_fini);
+	fprintf(stdout, "DSZ: SPDK: nvmf_subsystem_update_ns: call spdk_for_each_channel for subsystem_update_ns_on_pg: END\n");
 
 	return 0;
 }
@@ -1178,6 +1213,8 @@ spdk_nvmf_subsystem_listener_allowed(struct spdk_nvmf_subsystem *subsystem,
 	struct spdk_nvmf_subsystem_listener *listener;
 
 	TAILQ_FOREACH(listener, &subsystem->listeners, link) {
+		fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_listener_allowed: listener->trid: subnqn = %s, traddr = %s, trstring = %s, trsvcid = %s\n", listener->trid->subnqn, listener->trid->traddr, listener->trid->trstring, listener->trid->trsvcid);
+		fprintf(stdout, "DSZ: SPDK: spdk_nvmf_subsystem_listener_allowed: trid: subnqn = %s, traddr = %s, trstring = %s, trsvcid = %s\n", trid->subnqn, trid->traddr, trid->trstring, trid->trsvcid);
 		if (spdk_nvme_transport_id_compare(listener->trid, trid) == 0) {
 			return true;
 		}
@@ -1266,10 +1303,12 @@ static int
 nvmf_subsystem_update_ns(struct spdk_nvmf_subsystem *subsystem, spdk_channel_for_each_cpl cpl,
 			 void *ctx)
 {
+	fprintf(stdout, "DSZ: SPDK: nvmf_subsystem_update_ns: call spdk_for_each_channel for subsystem_update_ns_on_pg: BEGIN\n");
 	spdk_for_each_channel(subsystem->tgt,
 			      subsystem_update_ns_on_pg,
 			      ctx,
 			      cpl);
+	fprintf(stdout, "DSZ: SPDK: nvmf_subsystem_update_ns: call spdk_for_each_channel for subsystem_update_ns_on_pg: END\n");
 
 	return 0;
 }
@@ -3218,8 +3257,10 @@ nvmf_subsystem_set_ana_state(struct spdk_nvmf_subsystem *subsystem,
 	ctx->cb_fn = cb_fn;
 	ctx->cb_arg = cb_arg;
 
+	fprintf(stdout, "DSZ: SPDK: nvmf_subsystem_set_ana_state: call spdk_for_each_channel for subsystem_listener_update_on_pg: BEGIN\n");
 	spdk_for_each_channel(subsystem->tgt,
 			      subsystem_listener_update_on_pg,
 			      ctx,
 			      subsystem_listener_update_done);
+	fprintf(stdout, "DSZ: SPDK: nvmf_subsystem_set_ana_state: call spdk_for_each_channel for subsystem_listener_update_on_pg: END\n");
 }

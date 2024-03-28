@@ -13,6 +13,10 @@
 #include "spdk/json.h"
 #include "spdk/string.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static bool g_shutdown_started = false;
 
 /* raid bdev config as read from config file */
@@ -1584,3 +1588,7 @@ raid_bdev_examine(struct spdk_bdev *bdev)
 
 /* Log component for bdev raid bdev module */
 SPDK_LOG_REGISTER_COMPONENT(bdev_raid)
+
+#ifdef __cplusplus
+}
+#endif
