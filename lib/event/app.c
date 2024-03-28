@@ -121,23 +121,29 @@ static const struct option g_cmdline_options[] = {
 static void
 app_start_shutdown(void *ctx)
 {
+	fprintf(stdout, "DSZ: SPDK: app_start_shutdown: BEGIN\n");
 	if (g_spdk_app.shutdown_cb) {
+		fprintf(stdout, "DSZ: SPDK: app_start_shutdown: call g_spdk_app.shutdown_cb();\n");
 		g_spdk_app.shutdown_cb();
 		g_spdk_app.shutdown_cb = NULL;
 	} else {
+		fprintf(stdout, "DSZ: SPDK: app_start_shutdown: call spdk_app_stop\n");
 		spdk_app_stop(0);
 	}
+	fprintf(stdout, "DSZ: SPDK: app_start_shutdown: END\n");
 }
 
 void
 spdk_app_start_shutdown(void)
 {
+	fprintf(stdout, "DSZ: SPDK: spdk_app_start_shutdown: BEGIN\n");
 	spdk_thread_send_critical_msg(g_app_thread, app_start_shutdown);
 }
 
 static void
 __shutdown_signal(int signo)
 {
+	fprintf(stdout, "DSZ: SPDK: __shutdown_signal BEGIN\n");
 	if (!g_shutdown_sig_received) {
 		g_shutdown_sig_received = true;
 		spdk_app_start_shutdown();
@@ -246,6 +252,7 @@ app_start_application(void)
 {
 	assert(spdk_get_thread() == g_app_thread);
 
+	printf("DSZ: app_start_application: g_app_thread = %p, g_start_fn = %p, g_start_arg = %p\n", g_app_thread, g_start_fn, g_start_arg);
 	g_start_fn(g_start_arg);
 }
 
@@ -444,14 +451,18 @@ bootstrap_fn(void *arg1)
 	int rc;
 
 	if (g_spdk_app.json_config_file) {
+		printf("DSZ: bootstrap_fn: FROM JSON\n");
 		g_delay_subsystem_init = false;
 		spdk_subsystem_init_from_json_config(g_spdk_app.json_config_file, g_spdk_app.rpc_addr,
 						     app_start_rpc,
 						     NULL, !g_spdk_app.json_config_ignore_errors);
 	} else {
+		printf("DSZ: bootstrap_fn: NOT FROM JSON\n");
 		if (!g_delay_subsystem_init) {
+			printf("DSZ: bootstrap_fn: NOT FROM JSON: NOT DELAYED - spdk_subsystem_init\n");
 			spdk_subsystem_init(app_start_rpc, NULL);
 		} else {
+			printf("DSZ: bootstrap_fn: NOT FROM JSON: DELAYED\n");
 			rc = spdk_rpc_initialize(g_spdk_app.rpc_addr);
 			if (rc) {
 				spdk_app_stop(rc);
@@ -644,17 +655,21 @@ spdk_app_fini(void)
 static void
 _start_subsystem_fini(void *arg1)
 {
+	fprintf(stdout, "DSZ: SPDK: _start_subsystem_fini: BEGIN\n");
 	if (g_scheduling_in_progress) {
+		fprintf(stdout, "DSZ: SPDK: _start_subsystem_fini: scheduling\n");
 		spdk_thread_send_msg(g_app_thread, _start_subsystem_fini, NULL);
 		return;
 	}
 
+	fprintf(stdout, "DSZ: SPDK: _start_subsystem_fini: immediate, no scheduling\n");
 	spdk_subsystem_fini(spdk_reactors_stop, NULL);
 }
 
 static void
 app_stop(void *arg1)
 {
+	fprintf(stdout, "DSZ: SPDK: app_stop: BEGIN\n");
 	if (g_spdk_app.rc == 0) {
 		g_spdk_app.rc = (int)(intptr_t)arg1;
 	}
@@ -664,15 +679,20 @@ app_stop(void *arg1)
 		return;
 	}
 
+	fprintf(stdout, "DSZ: SPDK: app_stop: before spdk_rpc_finish\n");
 	spdk_rpc_finish();
 	g_spdk_app.stopped = true;
+	fprintf(stdout, "DSZ: SPDK: app_stop: before _start_subsystems_fini\n");
 	_start_subsystem_fini(NULL);
+	fprintf(stdout, "DSZ: SPDK: app_stop: END\n");
 }
 
 void
 spdk_app_stop(int rc)
 {
+	fprintf(stdout, "DSZ: SPDK: spdk_app_stop: BEGIN\n");
 	if (rc) {
+		fprintf(stdout, "DSZ: SPDK: spdk_app_stop: error rc = %d\n", rc);
 		SPDK_WARNLOG("spdk_app_stop'd on non-zero\n");
 	}
 
@@ -681,6 +701,8 @@ spdk_app_stop(int rc)
 	 * was called.
 	 */
 	spdk_thread_send_msg(g_app_thread, app_stop, (void *)(intptr_t)rc);
+
+	fprintf(stdout, "DSZ: SPDK: spdk_app_stop: END sent app_stop to g_app_thread\n");
 }
 
 struct spdk_thread *

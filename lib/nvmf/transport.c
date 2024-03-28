@@ -169,6 +169,7 @@ nvmf_transport_opts_copy(struct spdk_nvmf_transport_opts *opts,
 struct spdk_nvmf_transport *
 spdk_nvmf_transport_create(const char *transport_name, struct spdk_nvmf_transport_opts *opts)
 {
+	fprintf(stdout, "DSZ: SPDK: spdk_nvmf_transport_create: BEGIN: transport_name = %s\n", transport_name);
 	const struct spdk_nvmf_transport_ops *ops = NULL;
 	struct spdk_nvmf_transport *transport;
 	char spdk_mempool_name[MAX_MEMPOOL_NAME_LENGTH];
@@ -245,6 +246,8 @@ spdk_nvmf_transport_create(const char *transport_name, struct spdk_nvmf_transpor
 		}
 	}
 
+	fprintf(stdout, "DSZ: SPDK: spdk_nvmf_transport_create: END\n");
+
 	return transport;
 }
 
@@ -264,6 +267,8 @@ int
 spdk_nvmf_transport_destroy(struct spdk_nvmf_transport *transport,
 			    spdk_nvmf_transport_destroy_done_cb cb_fn, void *cb_arg)
 {
+	fprintf(stdout, "DSZ: SPDK: spdk_nvmf_transport_destroy: BEGIN\n");
+
 	struct spdk_nvmf_listener *listener, *listener_tmp;
 
 	if (transport->data_buf_pool != NULL) {

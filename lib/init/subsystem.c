@@ -170,8 +170,11 @@ spdk_subsystem_init(spdk_subsystem_init_fn cb_fn, void *cb_arg)
 	g_subsystem_start_fn = cb_fn;
 	g_subsystem_start_arg = cb_arg;
 
+	printf("DSZ: inside spdk_subsystem_init: first = %p\n", g_subsystems_deps.tqh_first);
+
 	/* Verify that all dependency name and depends_on subsystems are registered */
 	TAILQ_FOREACH(dep, &g_subsystems_deps, tailq) {
+		// fprintf(stdout, "DSZ: subsystem %s depends on subsystem %s\n", dep->name, dep->depends_on);
 		if (!subsystem_find(dep->name)) {
 			SPDK_ERRLOG("subsystem %s is missing\n", dep->name);
 			g_subsystem_start_fn(-1, g_subsystem_start_arg);
@@ -235,12 +238,15 @@ spdk_subsystem_fini_next(void)
 void
 spdk_subsystem_fini(spdk_msg_fn cb_fn, void *cb_arg)
 {
+	fprintf(stdout, "DSZ: SPDK: spdk_subsystem_fini\n");
 	g_subsystem_stop_fn = cb_fn;
 	g_subsystem_stop_arg = cb_arg;
 
 	g_fini_thread = spdk_get_thread();
 
 	spdk_subsystem_fini_next();
+
+	fprintf(stdout, "DSZ: SPDK: spdk_subsystem_fini: END\n");
 }
 
 void

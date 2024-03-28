@@ -4257,6 +4257,7 @@ bdev_nvme_hotplug_probe(void *arg)
 		return SPDK_POLLER_IDLE;
 	}
 
+	fprintf(stdout, "DSZ: SPDK: bdev_nvme: bdev_nvme_hotplug_probe\n");
 	if (spdk_nvme_probe_poll_async(g_hotplug_probe_ctx) != -EAGAIN) {
 		g_hotplug_probe_ctx = NULL;
 		spdk_poller_unregister(&g_hotplug_probe_poller);
@@ -4590,6 +4591,7 @@ bdev_nvme_async_poll(void *arg)
 	int				rc;
 
 	rc = spdk_nvme_probe_poll_async(ctx->probe_ctx);
+	// fprintf(stdout, "DSZ: SPDK: bdev_nvme: bdev_nvme_async_poll: rc = %d\n", rc);
 	if (spdk_unlikely(rc != -EAGAIN)) {
 		ctx->probe_done = true;
 		spdk_poller_unregister(&ctx->poller);
@@ -4599,12 +4601,14 @@ bdev_nvme_async_poll(void *arg)
 			 * the caller (usually the RPC). populate_namespaces_cb()
 			 * will take care of freeing the nvme_async_probe_ctx.
 			 */
+			fprintf(stdout, "DSZ: SPDK: bdev_nvme: bdev_nvme_async_poll: will call populate_namespaces_cb and call our promise signal handler\n");
 			populate_namespaces_cb(ctx, 0, -EIO);
 		} else if (ctx->namespaces_populated) {
 			/* The namespaces for the attached controller were all
 			 * populated and the response was already sent to the
 			 * caller (usually the RPC).  So free the context here.
 			 */
+			fprintf(stdout, "DSZ: SPDK: bdev_nvme: bdev_nvme_async_poll: namespaces populated: rc = %d\n", rc);
 			free(ctx);
 		}
 	}
@@ -5294,6 +5298,7 @@ discovery_poller(void *arg)
 		}
 
 		rc = spdk_nvme_probe_poll_async(ctx->probe_ctx);
+		fprintf(stdout, "DSZ: SPDK: bdev_nvme: discovery_poller: rc = %d\n", rc);
 		if (rc != -EAGAIN) {
 			if (ctx->rc != 0) {
 				assert(ctx->initializing);

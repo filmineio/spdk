@@ -1,0 +1,10 @@
+{
+	global:
+
+	# public functions
+	raid_bdev_config_add;
+	raid_bdev_config_add_base_bdev;
+    raid_bdev_create;
+
+	local: *;
+};

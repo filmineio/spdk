@@ -259,6 +259,24 @@ int bdev_nvme_set_hotplug(bool enabled, uint64_t period_us, spdk_msg_fn cb, void
 
 void bdev_nvme_get_default_ctrlr_opts(struct nvme_ctrlr_opts *opts);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int spdk_bdev_nvme_create(struct spdk_nvme_transport_id *trid,
+		     const char *base_name,
+		     const char **names,
+		     uint32_t count,
+		     spdk_bdev_create_nvme_fn cb_fn,
+		     void *cb_ctx,
+		     struct spdk_nvme_ctrlr_opts *drv_opts,
+		     struct nvme_ctrlr_opts *bdev_opts,
+		     bool multipath);
+
+#ifdef __cplusplus
+}
+#endif
+
 int bdev_nvme_create(struct spdk_nvme_transport_id *trid,
 		     const char *base_name,
 		     const char **names,

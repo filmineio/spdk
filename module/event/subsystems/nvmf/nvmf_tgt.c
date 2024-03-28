@@ -55,6 +55,7 @@ static void nvmf_tgt_advance_state(void);
 static void
 nvmf_shutdown_cb(void *arg1)
 {
+	fprintf(stdout, "DSZ: SPDK: nvmf_shutdown_cb\n");
 	/* Still in initialization state, defer shutdown operation */
 	if (g_tgt_state < NVMF_TGT_RUNNING) {
 		spdk_thread_send_msg(spdk_get_thread(), nvmf_shutdown_cb, NULL);
@@ -66,8 +67,10 @@ nvmf_shutdown_cb(void *arg1)
 
 	if (g_tgt_state == NVMF_TGT_ERROR) {
 		/* Parse configuration error */
+	fprintf(stdout, "DSZ: SPDK: nvmf_shutdown_cb: TGT ERROR\n");
 		g_tgt_state = NVMF_TGT_FINI_DESTROY_TARGET;
 	} else {
+	fprintf(stdout, "DSZ: SPDK: nvmf_shutdown_cb: PROCEED\n");
 		g_tgt_state = NVMF_TGT_FINI_STOP_SUBSYSTEMS;
 	}
 	nvmf_tgt_advance_state();
@@ -76,6 +79,7 @@ nvmf_shutdown_cb(void *arg1)
 static void
 nvmf_subsystem_fini(void)
 {
+	fprintf(stdout, "DSZ: SPDK: nvmf_subsystem_fini\n");
 	nvmf_shutdown_cb(NULL);
 }
 
@@ -151,6 +155,8 @@ nvmf_tgt_create_poll_group_done(void *ctx)
 
 	assert(g_num_poll_groups < nvmf_get_cpuset_count());
 
+	// fprintf(stdout, "DSZ: SPDK: nvmf_tgt_create_poll_group_done: nvmf_get_cpuset_count() = %d\n", nvmf_get_cpuset_count());
+
 	if (++g_num_poll_groups == nvmf_get_cpuset_count()) {
 		if (g_tgt_state != NVMF_TGT_ERROR) {
 			g_tgt_state = NVMF_TGT_INIT_START_SUBSYSTEMS;
@@ -162,6 +168,7 @@ nvmf_tgt_create_poll_group_done(void *ctx)
 static void
 nvmf_tgt_create_poll_group(void *ctx)
 {
+	// fprintf(stdout, "DSZ: SPDK: nvmf_tgt_create_poll_group\n");
 	struct nvmf_tgt_poll_group *pg;
 
 	pg = calloc(1, sizeof(*pg));
@@ -189,11 +196,13 @@ nvmf_tgt_create_poll_groups(void)
 	assert(g_tgt_init_thread != NULL);
 
 	SPDK_ENV_FOREACH_CORE(cpu) {
+		// fprintf(stdout, "DSZ: SPDK: nvmf_tgt_create_poll_groups: LOOP: cpu = %d\n", cpu);
 		if (g_poll_groups_mask && !spdk_cpuset_get_cpu(g_poll_groups_mask, cpu)) {
 			continue;
 		}
 		snprintf(thread_name, sizeof(thread_name), "nvmf_tgt_poll_group_%u", count++);
 
+		// fprintf(stdout, "DSZ: SPDK: nvmf_tgt_create_poll_groups: LOOP: CREATE SPDK THREAD: thread_name = %s\n", thread_name);
 		thread = spdk_thread_create(thread_name, g_poll_groups_mask);
 		assert(thread != NULL);
 
@@ -205,6 +214,7 @@ static void
 nvmf_tgt_subsystem_started(struct spdk_nvmf_subsystem *subsystem,
 			   void *cb_arg, int status)
 {
+	// fprintf(stdout, "DSZ: SPDK: subsystem started: %p\n", subsystem);
 	subsystem = spdk_nvmf_subsystem_get_next(subsystem);
 	int rc;
 
@@ -487,6 +497,7 @@ nvmf_tgt_advance_state(void)
 static void
 nvmf_subsystem_init(void)
 {
+	printf("DSZ: SPDK: nvmf_subsystem_init\n");
 	g_tgt_state = NVMF_TGT_INIT_NONE;
 	nvmf_tgt_advance_state();
 }
