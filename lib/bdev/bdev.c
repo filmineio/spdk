@@ -125,7 +125,7 @@ static void
 __attribute__((constructor))
 _bdev_init(void)
 {
-	spdk_spin_init(&g_bdev_mgr.spinlock);
+	spdk_spin_init(&g_bdev_mgr.spinlock, "bdev_mgr_spinlock");
 }
 
 typedef void (*lock_range_cb)(struct lba_range *range, void *ctx, int status);
@@ -7742,7 +7742,7 @@ bdev_register(struct spdk_bdev *bdev)
 
 	free(bdev_name);
 
-	spdk_spin_init(&bdev->internal.spinlock);
+	spdk_spin_init(&bdev->internal.spinlock, "bdev_internal_spinlock");
 
 	SPDK_DEBUGLOG(bdev, "Inserting bdev %s into list\n", bdev->name);
 	TAILQ_INSERT_TAIL(&g_bdev_mgr.bdevs, bdev, internal.link);
@@ -8070,7 +8070,7 @@ bdev_desc_alloc(struct spdk_bdev *bdev, spdk_bdev_event_cb_t event_cb, void *eve
 	desc->memory_domains_supported = spdk_bdev_get_memory_domains(bdev, NULL, 0) > 0;
 	desc->callback.event_fn = event_cb;
 	desc->callback.ctx = event_ctx;
-	spdk_spin_init(&desc->spinlock);
+	spdk_spin_init(&desc->spinlock, "bdev_desc_spinlock");
 
 	if (bdev->media_events) {
 		desc->media_events_buffer = calloc(MEDIA_EVENT_POOL_SIZE,
@@ -9067,7 +9067,7 @@ spdk_bdev_module_list_add(struct spdk_bdev_module *bdev_module)
 		assert(false);
 	}
 
-	spdk_spin_init(&bdev_module->internal.spinlock);
+	spdk_spin_init(&bdev_module->internal.spinlock, "bdev_module_internal_spinlock");
 	TAILQ_INIT(&bdev_module->internal.quiesced_ranges);
 
 	/*

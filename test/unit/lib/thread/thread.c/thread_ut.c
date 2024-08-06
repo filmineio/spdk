@@ -1797,7 +1797,7 @@ spdk_spin(void)
 
 	/* Do not need to be on an SPDK thread to initialize an spdk_spinlock */
 	g_spin_err_count = 0;
-	spdk_spin_init(&lock);
+	spdk_spin_init(&lock, "thread_ut_spdk_spin_lock");
 	CU_ASSERT(g_spin_err_count == 0);
 
 	/* Trying to take a lock while not on an SPDK thread is an error */
@@ -1822,7 +1822,7 @@ spdk_spin(void)
 
 	/* Can initialize an spdk_spinlock on an SPDK thread */
 	g_spin_err_count = 0;
-	spdk_spin_init(&lock);
+	spdk_spin_init(&lock, "thread_ut_spdk_spin_lock_2");
 	CU_ASSERT(g_spin_err_count == 0);
 
 	/* Can take spinlock */

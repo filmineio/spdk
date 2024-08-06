@@ -2762,8 +2762,8 @@ spdk_accel_initialize(void)
 	spdk_io_device_register(&spdk_accel_module_list, accel_create_channel, accel_destroy_channel,
 				sizeof(struct accel_io_channel), "accel");
 
-	spdk_spin_init(&g_keyring_spin);
-	spdk_spin_init(&g_stats_lock);
+	spdk_spin_init(&g_keyring_spin, "keyring_spin");
+	spdk_spin_init(&g_stats_lock, "stats_lock");
 
 	rc = spdk_memory_domain_create(&g_accel_domain, SPDK_DMA_DEVICE_TYPE_ACCEL, NULL,
 				       "SPDK_ACCEL_DMA_DEVICE");

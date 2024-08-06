@@ -172,7 +172,7 @@ CONFIG_CUSTOMOCF=n
 CONFIG_ISAL=y
 
 # Build ISA-L-crypto library
-CONFIG_ISAL_CRYPTO=y
+CONFIG_ISAL_CRYPTO=n
 
 # Build with IO_URING support
 CONFIG_URING=n

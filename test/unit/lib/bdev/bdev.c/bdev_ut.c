@@ -1015,7 +1015,7 @@ io_valid_test(void)
 	memset(&bdev, 0, sizeof(bdev));
 
 	bdev.blocklen = 512;
-	spdk_spin_init(&bdev.internal.spinlock);
+	spdk_spin_init(&bdev.internal.spinlock, "test_bdev_c_bdev_internal_spinlock");
 
 	spdk_bdev_notify_blockcnt_change(&bdev, 100);
 

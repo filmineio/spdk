@@ -939,6 +939,7 @@ bool spdk_interrupt_mode_is_enabled(void);
  * If an SPDK spinlock is used erroneously, the program will abort.
  */
 struct spdk_spinlock {
+	const char* name;
 	pthread_spinlock_t spinlock;
 	struct spdk_thread *thread;
 	struct spdk_spinlock_internal *internal;
@@ -951,7 +952,7 @@ struct spdk_spinlock {
  *
  * \param sspin The SPDK spinlock to initialize.
  */
-void spdk_spin_init(struct spdk_spinlock *sspin);
+void spdk_spin_init(struct spdk_spinlock *sspin, const char* name);
 
 /**
  * Destroy an spdk_spinlock.

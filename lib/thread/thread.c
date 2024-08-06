@@ -956,8 +956,12 @@ thread_execute_poller(struct spdk_thread *thread, struct spdk_poller *poller)
 	}
 
 	poller->state = SPDK_POLLER_STATE_RUNNING;
+	// fprintf(stdout, "DSZ: SPDK: thread_execute_poller: thread = %s, poller address = %p\n", thread->name, poller);
 	rc = poller->fn(poller->arg);
 
+	if (thread->lock_count != 0) {
+		fprintf(stdout, "DSZ: SPDK: thread_execute_poller: thread = %s, poller name = %s, thread->lock_count = %d\n", thread->name, poller->name, thread->lock_count);
+	}
 	SPIN_ASSERT(thread->lock_count == 0, SPIN_ERR_HOLD_DURING_SWITCH);
 
 	poller->run_count++;
@@ -1017,8 +1021,12 @@ thread_execute_timed_poller(struct spdk_thread *thread, struct spdk_poller *poll
 	}
 
 	poller->state = SPDK_POLLER_STATE_RUNNING;
+	// fprintf(stdout, "DSZ: SPDK: thread_execute_timed_poller: thread = %s, poller address = %p\n", thread->name, poller);
 	rc = poller->fn(poller->arg);
 
+	if (thread->lock_count != 0) {
+		fprintf(stdout, "DSZ: SPDK: thread_execute_timed_poller: thread = %s, poller name = %s, thread->lock_count = %d\n", thread->name, poller->name, thread->lock_count);
+	}
 	SPIN_ASSERT(thread->lock_count == 0, SPIN_ERR_HOLD_DURING_SWITCH);
 
 	poller->run_count++;
@@ -3031,7 +3039,7 @@ sspin_stacks_print(const struct spdk_spinlock *sspin)
 }
 
 void
-spdk_spin_init(struct spdk_spinlock *sspin)
+spdk_spin_init(struct spdk_spinlock *sspin, const char* name)
 {
 	int rc;
 
@@ -3040,6 +3048,7 @@ spdk_spin_init(struct spdk_spinlock *sspin)
 	SPIN_ASSERT_LOG_STACKS(rc == 0, SPIN_ERR_PTHREAD, sspin);
 	sspin_init_internal(sspin);
 	SSPIN_GET_STACK(sspin, init);
+	sspin->name = name;
 	sspin->initialized = true;
 }
 

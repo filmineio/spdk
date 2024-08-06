@@ -180,7 +180,7 @@ contend_setup(void)
 	uint32_t i;
 
 	memset(&g_contend_spinlock, 0, sizeof(g_contend_spinlock));
-	spdk_spin_init(&g_contend_spinlock);
+	spdk_spin_init(&g_contend_spinlock, "contend_spinlock");
 	g_contend_remaining = SPDK_COUNTOF(g_contend_data);
 
 	/* Add a poller to each thread */
@@ -277,7 +277,7 @@ static void
 hold_by_poller_start(void *arg)
 {
 	memset(g_lock_error_count, 0, sizeof(g_lock_error_count));
-	spdk_spin_init(&g_hold_by_poller_spinlock);
+	spdk_spin_init(&g_hold_by_poller_spinlock, "hold_by_poller_spinlock");
 
 	g_hold_by_poller_poller = spdk_poller_register(hold_by_poller, NULL, 0);
 }
@@ -330,7 +330,7 @@ static void
 hold_by_message_setup(void)
 {
 	memset(g_lock_error_count, 0, sizeof(g_lock_error_count));
-	spdk_spin_init(&g_hold_by_message_spinlock);
+	spdk_spin_init(&g_hold_by_message_spinlock, "hold_by_message_spinlock");
 
 	spdk_thread_send_msg(g_thread[0], hold_by_message, NULL);
 }

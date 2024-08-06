@@ -1971,9 +1971,9 @@ nvmf_ns_opts_copy(struct spdk_nvmf_ns_opts *opts,
 }
 
 /* Dummy bdev module used to to claim bdevs. */
-static struct spdk_bdev_module ns_bdev_module = {
-	.name	= "NVMe-oF Target",
-};
+// static struct spdk_bdev_module ns_bdev_module = {
+// 	.name	= "NVMe-oF Target",
+// };
 
 static int nvmf_ns_reservation_update(const struct spdk_nvmf_ns *ns,
 				      const struct spdk_nvmf_reservation_info *info);
@@ -2085,12 +2085,12 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 		}
 	}
 
-	rc = spdk_bdev_module_claim_bdev(ns->bdev, ns->desc, &ns_bdev_module);
-	if (rc != 0) {
-		spdk_bdev_close(ns->desc);
-		free(ns);
-		return 0;
-	}
+	// rc = spdk_bdev_module_claim_bdev(ns->bdev, ns->desc, &ns_bdev_module);
+	// if (rc != 0) {
+	// 	spdk_bdev_close(ns->desc);
+	// 	free(ns);
+	// 	return 0;
+	// }
 
 	/* Cache the zcopy capability of the bdev device */
 	ns->zcopy = spdk_bdev_io_type_supported(ns->bdev, SPDK_BDEV_IO_TYPE_ZCOPY);
@@ -2197,7 +2197,7 @@ spdk_nvmf_subsystem_add_ns_ext(struct spdk_nvmf_subsystem *subsystem, const char
 	return opts.nsid;
 err:
 	subsystem->ns[opts.nsid - 1] = NULL;
-	spdk_bdev_module_release_bdev(ns->bdev);
+	// spdk_bdev_module_release_bdev(ns->bdev);
 	spdk_bdev_close(ns->desc);
 	free(ns->ptpl_file);
 	free(ns);

@@ -548,7 +548,7 @@ spdk_bdev_create_bs_dev(const char *bdev_name, bool write,
 	*bs_dev = &b->bs_dev;
 	b->write = write;
 	b->refs = 1;
-	spdk_spin_init(&b->lock);
+	spdk_spin_init(&b->lock, "module_blob_bdev_bs_dev_lock");
 
 	return 0;
 }
