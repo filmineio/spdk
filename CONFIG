@@ -169,7 +169,7 @@ CONFIG_OCF_PATH=
 CONFIG_CUSTOMOCF=n
 
 # Build ISA-L library
-CONFIG_ISAL=y
+CONFIG_ISAL=n
 
 # Build ISA-L-crypto library
 CONFIG_ISAL_CRYPTO=n
