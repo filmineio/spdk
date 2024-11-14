@@ -1219,7 +1219,7 @@ if [[ "${CONFIG[FUZZER]}" = "y" && "$CC_TYPE" != "clang" ]]; then
 fi
 
 if [[ $arch == x86_64* ]] || [[ $arch == aarch64* ]]; then
-	CONFIG[ISAL]=y
+	CONFIG[ISAL]=n
 	# make sure the submodule is initialized
 	if [ ! -f "$rootdir"/isa-l/autogen.sh ]; then
 		echo "ISA-L is required but was not found, please init the submodule with:"
