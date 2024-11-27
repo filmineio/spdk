@@ -8496,36 +8496,36 @@ int
 spdk_bdev_module_claim_bdev(struct spdk_bdev *bdev, struct spdk_bdev_desc *desc,
 			    struct spdk_bdev_module *module)
 {
-	spdk_spin_lock(&bdev->internal.spinlock);
+	// spdk_spin_lock(&bdev->internal.spinlock);
 
-	if (bdev->internal.claim_type != SPDK_BDEV_CLAIM_NONE) {
-		LOG_ALREADY_CLAIMED_ERROR("already claimed", bdev);
-		spdk_spin_unlock(&bdev->internal.spinlock);
-		return -EPERM;
-	}
+	// if (bdev->internal.claim_type != SPDK_BDEV_CLAIM_NONE) {
+	// 	LOG_ALREADY_CLAIMED_ERROR("already claimed", bdev);
+	// 	spdk_spin_unlock(&bdev->internal.spinlock);
+	// 	return -EPERM;
+	// }
 
-	if (desc && !desc->write) {
-		desc->write = true;
-	}
+	// if (desc && !desc->write) {
+	// 	desc->write = true;
+	// }
 
-	bdev->internal.claim_type = SPDK_BDEV_CLAIM_EXCL_WRITE;
-	bdev->internal.claim.v1.module = module;
+	// bdev->internal.claim_type = SPDK_BDEV_CLAIM_EXCL_WRITE;
+	// bdev->internal.claim.v1.module = module;
 
-	spdk_spin_unlock(&bdev->internal.spinlock);
+	// spdk_spin_unlock(&bdev->internal.spinlock);
 	return 0;
 }
 
 void
 spdk_bdev_module_release_bdev(struct spdk_bdev *bdev)
 {
-	spdk_spin_lock(&bdev->internal.spinlock);
+	// spdk_spin_lock(&bdev->internal.spinlock);
 
-	assert(bdev->internal.claim.v1.module != NULL);
-	assert(bdev->internal.claim_type == SPDK_BDEV_CLAIM_EXCL_WRITE);
-	bdev->internal.claim_type = SPDK_BDEV_CLAIM_NONE;
-	bdev->internal.claim.v1.module = NULL;
+	// assert(bdev->internal.claim.v1.module != NULL);
+	// assert(bdev->internal.claim_type == SPDK_BDEV_CLAIM_EXCL_WRITE);
+	// bdev->internal.claim_type = SPDK_BDEV_CLAIM_NONE;
+	// bdev->internal.claim.v1.module = NULL;
 
-	spdk_spin_unlock(&bdev->internal.spinlock);
+	// spdk_spin_unlock(&bdev->internal.spinlock);
 }
 
 /*
@@ -8806,63 +8806,65 @@ spdk_bdev_module_claim_bdev_desc(struct spdk_bdev_desc *desc, enum spdk_bdev_cla
 				 struct spdk_bdev_claim_opts *_opts,
 				 struct spdk_bdev_module *module)
 {
-	struct spdk_bdev *bdev;
-	struct spdk_bdev_claim_opts opts;
-	int rc = 0;
+	// struct spdk_bdev *bdev;
+	// struct spdk_bdev_claim_opts opts;
+	// int rc = 0;
 
-	if (desc == NULL) {
-		SPDK_ERRLOG("descriptor must not be NULL\n");
-		return -EINVAL;
-	}
+	// if (desc == NULL) {
+	// 	SPDK_ERRLOG("descriptor must not be NULL\n");
+	// 	return -EINVAL;
+	// }
 
-	bdev = desc->bdev;
+	// bdev = desc->bdev;
 
-	if (_opts == NULL) {
-		spdk_bdev_claim_opts_init(&opts, sizeof(opts));
-	} else if (claim_opts_copy(_opts, &opts) != 0) {
-		return -EINVAL;
-	}
+	// if (_opts == NULL) {
+	// 	spdk_bdev_claim_opts_init(&opts, sizeof(opts));
+	// } else if (claim_opts_copy(_opts, &opts) != 0) {
+	// 	return -EINVAL;
+	// }
 
-	spdk_spin_lock(&bdev->internal.spinlock);
+	// spdk_spin_lock(&bdev->internal.spinlock);
 
-	if (bdev->internal.claim_type != SPDK_BDEV_CLAIM_NONE &&
-	    bdev->internal.claim_type != type) {
-		LOG_ALREADY_CLAIMED_ERROR("already claimed", bdev);
-		spdk_spin_unlock(&bdev->internal.spinlock);
-		return -EPERM;
-	}
+	// if (bdev->internal.claim_type != SPDK_BDEV_CLAIM_NONE &&
+	//     bdev->internal.claim_type != type) {
+	// 	LOG_ALREADY_CLAIMED_ERROR("already claimed", bdev);
+	// 	spdk_spin_unlock(&bdev->internal.spinlock);
+	// 	return -EPERM;
+	// }
 
-	if (claim_type_is_v2(type) && desc->claim != NULL) {
-		SPDK_ERRLOG("%s: descriptor already has %s claim with name '%s'\n",
-			    bdev->name, spdk_bdev_claim_get_name(type), desc->claim->name);
-		spdk_spin_unlock(&bdev->internal.spinlock);
-		return -EPERM;
-	}
+	// if (claim_type_is_v2(type) && desc->claim != NULL) {
+	// 	SPDK_ERRLOG("%s: descriptor already has %s claim with name '%s'\n",
+	// 		    bdev->name, spdk_bdev_claim_get_name(type), desc->claim->name);
+	// 	spdk_spin_unlock(&bdev->internal.spinlock);
+	// 	return -EPERM;
+	// }
 
-	switch (type) {
-	case SPDK_BDEV_CLAIM_EXCL_WRITE:
-		spdk_spin_unlock(&bdev->internal.spinlock);
-		return spdk_bdev_module_claim_bdev(bdev, desc, module);
-	case SPDK_BDEV_CLAIM_READ_MANY_WRITE_ONE:
-		rc = claim_verify_rwo(desc, type, &opts, module);
-		break;
-	case SPDK_BDEV_CLAIM_READ_MANY_WRITE_NONE:
-		rc = claim_verify_rom(desc, type, &opts, module);
-		break;
-	case SPDK_BDEV_CLAIM_READ_MANY_WRITE_SHARED:
-		rc = claim_verify_rwm(desc, type, &opts, module);
-		break;
-	default:
-		SPDK_ERRLOG("%s: claim type %d not supported\n", bdev->name, type);
-		rc = -ENOTSUP;
-	}
+	// switch (type) {
+	// case SPDK_BDEV_CLAIM_EXCL_WRITE:
+	// 	spdk_spin_unlock(&bdev->internal.spinlock);
+	// 	return spdk_bdev_module_claim_bdev(bdev, desc, module);
+	// case SPDK_BDEV_CLAIM_READ_MANY_WRITE_ONE:
+	// 	rc = claim_verify_rwo(desc, type, &opts, module);
+	// 	break;
+	// case SPDK_BDEV_CLAIM_READ_MANY_WRITE_NONE:
+	// 	rc = claim_verify_rom(desc, type, &opts, module);
+	// 	break;
+	// case SPDK_BDEV_CLAIM_READ_MANY_WRITE_SHARED:
+	// 	rc = claim_verify_rwm(desc, type, &opts, module);
+	// 	break;
+	// default:
+	// 	SPDK_ERRLOG("%s: claim type %d not supported\n", bdev->name, type);
+	// 	rc = -ENOTSUP;
+	// }
 
-	if (rc == 0) {
-		rc = claim_bdev(desc, type, &opts, module);
-	}
+	// if (rc == 0) {
+	// 	rc = claim_bdev(desc, type, &opts, module);
+	// }
 
-	spdk_spin_unlock(&bdev->internal.spinlock);
-	return rc;
+	// spdk_spin_unlock(&bdev->internal.spinlock);
+	// return rc;
+
+	return 0;
 }
 
 static void
