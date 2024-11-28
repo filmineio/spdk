@@ -61,6 +61,28 @@ void spdk_blobfs_bdev_create(const char *bdev_name, uint32_t cluster_sz,
 void spdk_blobfs_bdev_mount(const char *bdev_name, const char *mountpoint,
 			    spdk_blobfs_bdev_op_complete cb_fn, void *cb_arg);
 
+
+struct blobfs_bdev_operation_ctx {
+	const char *bdev_name;
+	struct spdk_filesystem *fs;
+
+	/* If cb_fn is already called in other function, not _blobfs_bdev_unload_cb.
+	 * cb_fn should be set NULL after its being called, in order to avoid repeated
+	 * calling in _blobfs_bdev_unload_cb.
+	 */
+	spdk_blobfs_bdev_op_complete cb_fn;
+	void *cb_arg;
+
+	/* Variables for mount operation */
+	const char *mountpoint;
+	struct spdk_thread *fs_loading_thread;
+
+	/* Used in bdev_event_cb to do some proper operations on blobfs_fuse for
+	 * asynchronous event of the backend bdev.
+	 */
+	struct spdk_blobfs_fuse *bfuse;
+};
+
 #ifdef __cplusplus
 }
 #endif

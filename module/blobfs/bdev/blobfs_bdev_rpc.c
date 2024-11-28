@@ -15,6 +15,8 @@
 #include "spdk/rpc.h"
 #include "spdk/util.h"
 
+#include "blobfs_fuse.h"
+
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
 #endif
@@ -245,6 +247,7 @@ free_rpc_blobfs_mount(struct rpc_blobfs_mount *req)
 	free(req);
 }
 
+
 static const struct spdk_json_object_decoder rpc_blobfs_mount_decoders[] = {
 	{"bdev_name", offsetof(struct rpc_blobfs_mount, bdev_name), spdk_json_decode_string},
 	{"mountpoint", offsetof(struct rpc_blobfs_mount, mountpoint), spdk_json_decode_string},
@@ -303,5 +306,65 @@ rpc_blobfs_mount(struct spdk_jsonrpc_request *request,
 }
 
 SPDK_RPC_REGISTER("blobfs_mount", rpc_blobfs_mount, SPDK_RPC_RUNTIME)
+
+
+
+struct rpc_blobfs_unmount {
+	char *bdev_name;
+	char *mountpoint;
+
+	struct spdk_jsonrpc_request *request;
+};
+
+static void
+free_rpc_blobfs_unmount(struct rpc_blobfs_unmount *req)
+{
+	free(req->bdev_name);
+	free(req->mountpoint);
+	free(req);
+}
+
+static const struct spdk_json_object_decoder rpc_blobfs_unmount_decoders[] = {
+	{"bdev_name", offsetof(struct rpc_blobfs_unmount, bdev_name), spdk_json_decode_string},
+	{"mountpoint", offsetof(struct rpc_blobfs_unmount, mountpoint), spdk_json_decode_string},
+};
+
+
+static void
+rpc_blobfs_unmount(struct spdk_jsonrpc_request *request,
+		 const struct spdk_json_val *params)
+{
+	struct rpc_blobfs_unmount *req;
+
+	req = calloc(1, sizeof(*req));
+	if (req == NULL) {
+		SPDK_ERRLOG("could not allocate rpc_blobfs_unmount request.\n");
+		spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INTERNAL_ERROR, "Out of memory");
+		return;
+	}
+
+	if (spdk_json_decode_object(params, rpc_blobfs_unmount_decoders,
+				    SPDK_COUNTOF(rpc_blobfs_unmount_decoders),
+				    req)) {
+		SPDK_ERRLOG("spdk_json_decode_object failed\n");
+		spdk_jsonrpc_send_error_response(request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
+						 "spdk_json_decode_object failed");
+
+		free_rpc_blobfs_unmount(req);
+
+		return;
+	}
+
+	if (g_mount_ctx != NULL) {
+		blobfs_fuse_stop_sync(g_mount_ctx->bfuse);
+		g_mount_ctx = NULL;
+	}
+
+	req->request = request;
+	spdk_jsonrpc_send_bool_response(req->request, true);
+	free_rpc_blobfs_unmount(req);
+}
+
+SPDK_RPC_REGISTER("blobfs_unmount", rpc_blobfs_unmount, SPDK_RPC_RUNTIME)
 
 #endif

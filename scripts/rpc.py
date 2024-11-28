@@ -3519,6 +3519,16 @@ Format: 'user:u1 secret:s1 muser:mu1 msecret:ms1,user:u2 secret:s2 muser:mu2 mse
     p.add_argument('mountpoint', help='Mountpoint path in host to mount blobfs. Example: /mnt/.')
     p.set_defaults(func=blobfs_mount)
 
+    def blobfs_unmount(args):
+        print(rpc.blobfs.blobfs_unmount(args.client,
+                                      bdev_name=args.bdev_name,
+                                      mountpoint=args.mountpoint))
+
+    p = subparsers.add_parser('blobfs_unmount', help='Unmount a blobfs from bdev to host path by FUSE')
+    p.add_argument('bdev_name', help='Blockdev name where the blobfs is. Example: Malloc0.')
+    p.add_argument('mountpoint', help='Mountpoint path in host to mount blobfs. Example: /mnt/.')
+    p.set_defaults(func=blobfs_unmount)
+
     def blobfs_set_cache_size(args):
         print(rpc.blobfs.blobfs_set_cache_size(args.client,
                                                size_in_mb=args.size_in_mb))

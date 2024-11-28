@@ -252,7 +252,10 @@ fuse_loop_new_thread(void *arg)
 
 	blobfs_fuse_free(bfuse);
 
+	SPDK_NOTICELOG("Before Thread exit\n");
 	pthread_exit(NULL);
+	SPDK_NOTICELOG("After Thread exit\n");
+
 }
 
 int
@@ -332,5 +335,14 @@ blobfs_fuse_stop(struct spdk_blobfs_fuse *bfuse)
 	if (bfuse) {
 		fuse_session_exit(fuse_get_session(bfuse->fuse_handle));
 		pthread_kill(bfuse->fuse_tid, SIGINT);
+	}
+}
+
+void
+blobfs_fuse_stop_sync(struct spdk_blobfs_fuse *bfuse)
+{
+	if (bfuse) {
+		fuse_exit(bfuse->fuse_handle);
+		pthread_kill(bfuse->fuse_tid, 0);
 	}
 }

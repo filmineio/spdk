@@ -46,6 +46,19 @@ def blobfs_mount(client, bdev_name, mountpoint):
     }
     return client.call('blobfs_mount', params)
 
+def blobfs_unmount(client, bdev_name, mountpoint):
+    """Unmount blobfs from bdev by FUSE.
+
+    Args:
+        bdev_name: block device name where the blobfs is
+        mountpoint: Mountpoint path in host to mount blobfs
+    """
+    params = {
+        'bdev_name': bdev_name,
+        'mountpoint': mountpoint
+    }
+    return client.call('blobfs_unmount', params)
+
 
 def blobfs_set_cache_size(client, size_in_mb):
     """Set cache size for the blobstore filesystem.
