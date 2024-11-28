@@ -3,6 +3,7 @@
 	spdk_blobfs_bdev_detect;
 	spdk_blobfs_bdev_create;
 	spdk_blobfs_bdev_mount;
+	spdk_blobfs_bdev_unmount;
 
 	local: *;
 };

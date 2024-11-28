@@ -11,8 +11,6 @@
 
 struct spdk_blobfs_fuse;
 
-extern struct blobfs_bdev_operation_ctx *g_mount_ctx;
-
 void blobfs_fuse_send_request(fs_request_fn fn, void *arg);
 
 typedef void (*blobfs_fuse_unmount_cb)(void *arg);

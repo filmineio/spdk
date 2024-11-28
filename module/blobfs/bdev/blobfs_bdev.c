@@ -186,11 +186,21 @@ blobfs_bdev_unmount(void *arg)
 {
 	struct blobfs_bdev_operation_ctx *ctx = arg;
 
+	if (ctx == NULL) {
+		SPDK_DEBUGLOG(blobfs_bdev, "ctx is NULL\n");
+		return;
+	}
+
 	/* Keep blobfs unloaded in a same spdk thread with spdk_fs_load */
 	spdk_thread_send_msg(ctx->fs_loading_thread, blobfs_bdev_unload, ctx);
 }
 
 struct blobfs_bdev_operation_ctx *g_mount_ctx = NULL;
+
+#define MAX_BLOBFS_BDEV_OPERATION_CTX 16
+
+static struct blobfs_bdev_operation_ctx *blobfs_bdev_operation_ctx_pool[MAX_BLOBFS_BDEV_OPERATION_CTX];
+static int num_blobfs_bdev_operation_ctx = 0;
 
 static void
 _blobfs_bdev_mount_fuse_start(void *_ctx)
@@ -258,9 +268,32 @@ void
 spdk_blobfs_bdev_mount(const char *bdev_name, const char *mountpoint,
 		       spdk_blobfs_bdev_op_complete cb_fn, void *cb_arg)
 {
-	struct blobfs_bdev_operation_ctx *ctx;
+	struct blobfs_bdev_operation_ctx *ctx = NULL;
 	struct spdk_bs_dev *bs_dev;
+	int index = 0;
 	int rc;
+
+    for (int i = 0; i < num_blobfs_bdev_operation_ctx; i++) {
+        if (strcmp(blobfs_bdev_operation_ctx_pool[i]->bdev_name, bdev_name) == 0) {
+            ctx = blobfs_bdev_operation_ctx_pool[i];
+            index = i;
+            break;
+        }
+    }
+
+	if (ctx != NULL) {
+		blobfs_bdev_unmount(ctx);
+		blobfs_bdev_operation_ctx_pool[index] = blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx - 1];
+		blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx - 1] = NULL;
+		num_blobfs_bdev_operation_ctx--;
+	}
+
+	if (num_blobfs_bdev_operation_ctx == MAX_BLOBFS_BDEV_OPERATION_CTX) {
+		SPDK_ERRLOG("Maximum number of BlobFS mount contexts reached\n");
+		cb_fn(cb_arg, -ENOMEM);
+
+		return;
+	}
 
 	ctx = calloc(1, sizeof(*ctx));
 	if (ctx == NULL) {
@@ -269,6 +302,8 @@ spdk_blobfs_bdev_mount(const char *bdev_name, const char *mountpoint,
 
 		return;
 	}
+
+	blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx++] = ctx;
 
 	ctx->bdev_name = bdev_name;
 	ctx->mountpoint = mountpoint;
@@ -298,7 +333,52 @@ spdk_blobfs_bdev_mount(const char *bdev_name, const char *mountpoint,
 invalid:
 	free(ctx);
 
+	blobfs_bdev_operation_ctx_pool[--num_blobfs_bdev_operation_ctx] = NULL;
+
 	cb_fn(cb_arg, rc);
+}
+
+void spdk_blobfs_bdev_unmount(const char *bdev_name, const char *mountpoint,
+			      spdk_blobfs_bdev_op_complete cb_fn, void *cb_arg)
+{
+	struct blobfs_bdev_operation_ctx *ctx = NULL;
+	int index = 0;
+
+	for (int i = 0; i < num_blobfs_bdev_operation_ctx; i++) {
+        if (strcmp(blobfs_bdev_operation_ctx_pool[i]->bdev_name, bdev_name) == 0) {
+            ctx = blobfs_bdev_operation_ctx_pool[i];
+            index = i;
+            break;
+        }
+    }
+
+	if (ctx == NULL) {
+		SPDK_ERRLOG("No blobfs mounted on bdev %s\n", bdev_name);
+		cb_fn(cb_arg, -EINVAL);
+		return;
+	}
+
+	if (strcmp(ctx->mountpoint, mountpoint) != 0) {
+		SPDK_ERRLOG("Blobfs is mounted on %s, not %s\n", ctx->mountpoint, mountpoint);
+		cb_fn(cb_arg, -EINVAL);
+		return;
+	}
+
+	ctx->cb_fn = cb_fn;
+	ctx->cb_arg = cb_arg;
+
+	// DSZ: Version 1
+	blobfs_bdev_unmount(ctx);
+
+	// DSZ: Version 2
+	// if (ctx != NULL) {
+	// 	blobfs_fuse_stop_sync(g_mount_ctx->bfuse);
+	// 	ctx = NULL;
+	// }
+
+	blobfs_bdev_operation_ctx_pool[index] = blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx - 1];
+	blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx - 1] = NULL;
+	num_blobfs_bdev_operation_ctx--;
 }
 
 #else /* SPDK_CONFIG_FUSE */
@@ -308,6 +388,14 @@ spdk_blobfs_bdev_mount(const char *bdev_name, const char *mountpoint,
 		       spdk_blobfs_bdev_op_complete cb_fn, void *cb_arg)
 {
 	SPDK_ERRLOG("spdk_blobfs_bdev_mount() is unsupported\n");
+	cb_fn(cb_arg, -ENOTSUP);
+}
+
+void
+spdk_blobfs_bdev_unmount(const char *bdev_name, const char *mountpoint,
+				spdk_blobfs_bdev_op_complete cb_fn, void *cb_arg)
+{
+	SPDK_ERRLOG("spdk_blobfs_bdev_unmount() is unsupported\n");
 	cb_fn(cb_arg, -ENOTSUP);
 }
 

@@ -23,6 +23,8 @@
 
 #define MIN_CLUSTER_SZ (1024 * 1024)
 
+extern struct blobfs_bdev_operation_ctx *g_mount_ctx;
+
 struct rpc_blobfs_set_cache_size {
 	uint64_t size_in_mb;
 };
@@ -307,8 +309,6 @@ rpc_blobfs_mount(struct spdk_jsonrpc_request *request,
 
 SPDK_RPC_REGISTER("blobfs_mount", rpc_blobfs_mount, SPDK_RPC_RUNTIME)
 
-
-
 struct rpc_blobfs_unmount {
 	char *bdev_name;
 	char *mountpoint;
@@ -329,6 +329,27 @@ static const struct spdk_json_object_decoder rpc_blobfs_unmount_decoders[] = {
 	{"mountpoint", offsetof(struct rpc_blobfs_unmount, mountpoint), spdk_json_decode_string},
 };
 
+static void
+_rpc_blobfs_unmount_done(void *cb_arg, int fserrno)
+{
+	struct rpc_blobfs_unmount *req = cb_arg;
+
+	if (fserrno == -EILSEQ) {
+		/* There is no blobfs existing on bdev */
+		spdk_jsonrpc_send_error_response(req->request, SPDK_JSONRPC_ERROR_INVALID_PARAMS,
+						 "No blobfs detected on given bdev");
+
+		return;
+	} else if (fserrno != 0) {
+		spdk_jsonrpc_send_error_response(req->request, SPDK_JSONRPC_ERROR_INTERNAL_ERROR,
+						 spdk_strerror(-fserrno));
+
+		return;
+	}
+
+	spdk_jsonrpc_send_bool_response(req->request, true);
+	free_rpc_blobfs_unmount(req);
+}
 
 static void
 rpc_blobfs_unmount(struct spdk_jsonrpc_request *request,
@@ -355,14 +376,8 @@ rpc_blobfs_unmount(struct spdk_jsonrpc_request *request,
 		return;
 	}
 
-	if (g_mount_ctx != NULL) {
-		blobfs_fuse_stop_sync(g_mount_ctx->bfuse);
-		g_mount_ctx = NULL;
-	}
-
 	req->request = request;
-	spdk_jsonrpc_send_bool_response(req->request, true);
-	free_rpc_blobfs_unmount(req);
+	spdk_blobfs_bdev_unmount(req->bdev_name, req->mountpoint, _rpc_blobfs_unmount_done, req);
 }
 
 SPDK_RPC_REGISTER("blobfs_unmount", rpc_blobfs_unmount, SPDK_RPC_RUNTIME)

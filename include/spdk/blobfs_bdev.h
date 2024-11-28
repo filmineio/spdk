@@ -61,6 +61,19 @@ void spdk_blobfs_bdev_create(const char *bdev_name, uint32_t cluster_sz,
 void spdk_blobfs_bdev_mount(const char *bdev_name, const char *mountpoint,
 			    spdk_blobfs_bdev_op_complete cb_fn, void *cb_arg);
 
+/**
+ * Unmount a blobfs on given device from a host path by FUSE
+ *
+ * A new thread is created dedicatedly for one mountpoint to handle FUSE request
+ * by blobfs API.
+ *
+ * \param bdev_name Name of block device.
+ * \param mountpoint Host path to unmount blobfs from.
+ * \param cb_fn Called when mount operation is complete. fserrno is -EILSEQ if no blobfs exists.
+ * \param cb_arg Argument passed to function cb_fn.
+ */
+void spdk_blobfs_bdev_unmount(const char *bdev_name, const char *mountpoint,
+			    spdk_blobfs_bdev_op_complete cb_fn, void *cb_arg);
 
 struct blobfs_bdev_operation_ctx {
 	const char *bdev_name;
