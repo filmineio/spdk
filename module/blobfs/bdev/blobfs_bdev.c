@@ -63,7 +63,7 @@ _blobfs_bdev_unload_cb(void *_ctx, int fserrno)
 		ctx->cb_fn(ctx->cb_arg, fserrno);
 	}
 
-	free(ctx);
+	free_blobfs_bdev_operation_ctx(ctx);
 }
 
 static void
@@ -81,7 +81,7 @@ blobfs_bdev_load_cb_to_unload(void *_ctx, struct spdk_filesystem *fs, int fserrn
 
 	if (fserrno) {
 		ctx->cb_fn(ctx->cb_arg, fserrno);
-		free(ctx);
+		free_blobfs_bdev_operation_ctx(ctx);
 		return;
 	}
 
@@ -105,7 +105,7 @@ spdk_blobfs_bdev_detect(const char *bdev_name,
 		return;
 	}
 
-	ctx->bdev_name = bdev_name;
+	ctx->bdev_name = strdup(bdev_name);
 	ctx->cb_fn = cb_fn;
 	ctx->cb_arg = cb_arg;
 
@@ -122,7 +122,7 @@ spdk_blobfs_bdev_detect(const char *bdev_name,
 	return;
 
 invalid:
-	free(ctx);
+	free_blobfs_bdev_operation_ctx(ctx);
 
 	cb_fn(cb_arg, rc);
 }
@@ -144,7 +144,7 @@ spdk_blobfs_bdev_create(const char *bdev_name, uint32_t cluster_sz,
 		return;
 	}
 
-	ctx->bdev_name = bdev_name;
+	ctx->bdev_name = strdup(bdev_name);
 	ctx->cb_fn = cb_fn;
 	ctx->cb_arg = cb_arg;
 
@@ -174,7 +174,7 @@ spdk_blobfs_bdev_create(const char *bdev_name, uint32_t cluster_sz,
 	return;
 
 invalid:
-	free(ctx);
+	free_blobfs_bdev_operation_ctx(ctx);
 
 	cb_fn(cb_arg, rc);
 }
@@ -195,11 +195,11 @@ blobfs_bdev_unmount(void *arg)
 	spdk_thread_send_msg(ctx->fs_loading_thread, blobfs_bdev_unload, ctx);
 }
 
-struct blobfs_bdev_operation_ctx *g_mount_ctx = NULL;
+// struct blobfs_bdev_operation_ctx *g_mount_ctx = NULL;
 
 #define MAX_BLOBFS_BDEV_OPERATION_CTX 16
 
-static struct blobfs_bdev_operation_ctx *blobfs_bdev_operation_ctx_pool[MAX_BLOBFS_BDEV_OPERATION_CTX];
+static struct blobfs_bdev_operation_ctx *blobfs_bdev_operation_ctx_pool[MAX_BLOBFS_BDEV_OPERATION_CTX] = {NULL};
 static int num_blobfs_bdev_operation_ctx = 0;
 
 static void
@@ -227,7 +227,7 @@ _blobfs_bdev_mount_fuse_start(void *_ctx)
 		return;
 	}
 
-	g_mount_ctx = ctx;
+	// g_mount_ctx = ctx;
 
 	cb_fn(ctx->cb_arg, 0);
 }
@@ -241,7 +241,7 @@ _blobfs_bdev_mount_load_cb(void *_ctx, struct spdk_filesystem *fs, int fserrno)
 		SPDK_ERRLOG("Failed to load blobfs on bdev %s: errno %d\n", ctx->bdev_name, fserrno);
 
 		ctx->cb_fn(ctx->cb_arg, fserrno);
-		free(ctx);
+		free_blobfs_bdev_operation_ctx(ctx);
 		return;
 	}
 
@@ -281,11 +281,13 @@ spdk_blobfs_bdev_mount(const char *bdev_name, const char *mountpoint,
         }
     }
 
+	SPDK_NOTICELOG("Mounting blobfs on index %d, bdev %s, mountpoint %s\n", index, bdev_name, mountpoint);
+
 	if (ctx != NULL) {
-		blobfs_bdev_unmount(ctx);
-		blobfs_bdev_operation_ctx_pool[index] = blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx - 1];
-		blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx - 1] = NULL;
-		num_blobfs_bdev_operation_ctx--;
+		SPDK_NOTICELOG("Mounting - already exists, nothing to do: bdev_name = %s, index = %d\n", ctx->bdev_name, index);
+		cb_fn(cb_arg, 0);
+
+		return;
 	}
 
 	if (num_blobfs_bdev_operation_ctx == MAX_BLOBFS_BDEV_OPERATION_CTX) {
@@ -303,10 +305,11 @@ spdk_blobfs_bdev_mount(const char *bdev_name, const char *mountpoint,
 		return;
 	}
 
+	SPDK_NOTICELOG("Mount PUT index %d, ctx = %p, bdev %s, mountpoint %s\n", index, ctx, bdev_name, mountpoint);
 	blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx++] = ctx;
 
-	ctx->bdev_name = bdev_name;
-	ctx->mountpoint = mountpoint;
+	ctx->bdev_name = strdup(bdev_name);
+	ctx->mountpoint = strdup(mountpoint);
 	ctx->cb_fn = cb_fn;
 	ctx->cb_arg = cb_arg;
 
@@ -331,7 +334,9 @@ spdk_blobfs_bdev_mount(const char *bdev_name, const char *mountpoint,
 	return;
 
 invalid:
-	free(ctx);
+	SPDK_NOTICELOG("Mount invalid remove index %d, ctx = %p, bdev %s, mountpoint %s\n", index, ctx, bdev_name, mountpoint);
+
+	free_blobfs_bdev_operation_ctx(ctx);
 
 	blobfs_bdev_operation_ctx_pool[--num_blobfs_bdev_operation_ctx] = NULL;
 
@@ -342,21 +347,28 @@ void spdk_blobfs_bdev_unmount(const char *bdev_name, const char *mountpoint,
 			      spdk_blobfs_bdev_op_complete cb_fn, void *cb_arg)
 {
 	struct blobfs_bdev_operation_ctx *ctx = NULL;
-	int index = 0;
+	int index = -1;
 
 	for (int i = 0; i < num_blobfs_bdev_operation_ctx; i++) {
         if (strcmp(blobfs_bdev_operation_ctx_pool[i]->bdev_name, bdev_name) == 0) {
             ctx = blobfs_bdev_operation_ctx_pool[i];
             index = i;
+			SPDK_NOTICELOG("Unmount FOUND EXISTING index = %d, ctx->bdev_name = %s\n", index, ctx->bdev_name);
             break;
         }
     }
 
+	SPDK_NOTICELOG("Unmounting blobfs on index = %d, bdev_name = %s, mountpoint = %s\n", index, bdev_name, mountpoint);
+
 	if (ctx == NULL) {
-		SPDK_ERRLOG("No blobfs mounted on bdev %s\n", bdev_name);
-		cb_fn(cb_arg, -EINVAL);
+		SPDK_NOTICELOG("No blobfs mounted on bdev_name = %s\n", bdev_name);
+		cb_fn(cb_arg, 0);
+
 		return;
 	}
+
+	SPDK_NOTICELOG("Unmounting blobfs on index = %d, ctx = %p, bdev_name = %s, ctx->bdev_name = %s, mountpoint = %s, ctx->mountpoint = %s\n",
+		index, ctx, bdev_name, ctx->bdev_name, mountpoint, ctx->mountpoint);
 
 	if (strcmp(ctx->mountpoint, mountpoint) != 0) {
 		SPDK_ERRLOG("Blobfs is mounted on %s, not %s\n", ctx->mountpoint, mountpoint);
@@ -367,18 +379,21 @@ void spdk_blobfs_bdev_unmount(const char *bdev_name, const char *mountpoint,
 	ctx->cb_fn = cb_fn;
 	ctx->cb_arg = cb_arg;
 
-	// DSZ: Version 1
-	blobfs_bdev_unmount(ctx);
-
-	// DSZ: Version 2
-	// if (ctx != NULL) {
-	// 	blobfs_fuse_stop_sync(g_mount_ctx->bfuse);
-	// 	ctx = NULL;
-	// }
+	blobfs_fuse_stop_sync(ctx->bfuse);
 
 	blobfs_bdev_operation_ctx_pool[index] = blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx - 1];
 	blobfs_bdev_operation_ctx_pool[num_blobfs_bdev_operation_ctx - 1] = NULL;
 	num_blobfs_bdev_operation_ctx--;
+}
+
+void free_blobfs_bdev_operation_ctx(struct blobfs_bdev_operation_ctx *ctx) {
+    if (!ctx) {
+		return;
+	}
+
+    free(ctx->bdev_name);
+    free(ctx->mountpoint);
+    free(ctx);
 }
 
 #else /* SPDK_CONFIG_FUSE */

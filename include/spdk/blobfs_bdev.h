@@ -76,7 +76,7 @@ void spdk_blobfs_bdev_unmount(const char *bdev_name, const char *mountpoint,
 			    spdk_blobfs_bdev_op_complete cb_fn, void *cb_arg);
 
 struct blobfs_bdev_operation_ctx {
-	const char *bdev_name;
+	char *bdev_name;
 	struct spdk_filesystem *fs;
 
 	/* If cb_fn is already called in other function, not _blobfs_bdev_unload_cb.
@@ -87,7 +87,7 @@ struct blobfs_bdev_operation_ctx {
 	void *cb_arg;
 
 	/* Variables for mount operation */
-	const char *mountpoint;
+	char *mountpoint;
 	struct spdk_thread *fs_loading_thread;
 
 	/* Used in bdev_event_cb to do some proper operations on blobfs_fuse for
@@ -95,6 +95,8 @@ struct blobfs_bdev_operation_ctx {
 	 */
 	struct spdk_blobfs_fuse *bfuse;
 };
+
+void free_blobfs_bdev_operation_ctx(struct blobfs_bdev_operation_ctx *ctx);
 
 #ifdef __cplusplus
 }
